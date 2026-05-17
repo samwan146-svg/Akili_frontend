@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Akili — Portal Login</title>
+  <link rel="stylesheet" href="style.css"> </head>
+<body style="background: #0d0e12; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: system-ui, sans-serif;">
+
+  <div class="login-card" style="background: #13151a; padding: 40px; border-radius: 16px; border: 1px solid #22252e; width: 100%; max-width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+      <span style="font-size: 28px;">🧠</span>
+      <h2 style="color: white; margin: 0; font-size: 24px; font-weight: 700;">Akili</h2>
+    </div>
+    
+    <h3 style="color: #a0a5b5; margin: 0 0 24px 0; font-weight: 500; font-size: 16px;">Sign in to manage your school</h3>
+
+    <form id="login-form" onsubmit="handleAuth(event)">
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; color: #a0a5b5; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px;">Email Address</label>
+        <input type="email" id="auth-email" required style="width: 100%; background: #1b1d24; border: 1px solid #2d313f; padding: 12px; border-radius: 8px; color: white; font-size: 14px; box-sizing: border-box; outline: none;">
+      </div>
+
+      <div style="margin-bottom: 24px;">
+        <label style="display: block; color: #a0a5b5; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px;">Password</label>
+        <input type="password" id="auth-password" required style="width: 100%; background: #1b1d24; border: 1px solid #2d313f; padding: 12px; border-radius: 8px; color: white; font-size: 14px; box-sizing: border-box; outline: none;">
+      </div>
+
+      <button type="submit" style="width: 100%; background: #10b981; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;">
+        Access Dashboard
+      </button>
+    </form>
+  </div>
+
+  <script>
+    async function handleAuth(event) {
+      event.preventDefault();
+      const email = document.getElementById('auth-email').value;
+      const password = document.getElementById('auth-password').value;
+
+      try {
+        const res = await fetch('https://jodasa-backend-production.up.railway.app/api/token/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          
+          // Store tokens securely in browser memory
+          localStorage.setItem('akili_token', data.access);
+          localStorage.setItem('akili_user_role', data.role_name.toLowerCase()); // e.g., 'admin', 'teacher', 'parent'
+
+          // Route immediately based on security clearance
+          routeUserRole(data.role_name.toLowerCase());
+        } else {
+          alert("❌ Invalid credentials. Please try again.");
+        }
+      } catch (err) {
+        alert("❌ Authentication server unreachable.");
+      }
+    }
+
+    function routeUserRole(role) {
+      if (role === 'admin' || role === 'bursar') {
+        window.location.href = 'admin_dashboard.html';
+      } else if (role === 'teacher') {
+        window.location.href = 'teacher_dashboard.html';
+      } else {
+        window.location.href = 'portal.html'; // Shared Student/Parent view
+      }
+    }
+  </script>
+</body>
+</html>

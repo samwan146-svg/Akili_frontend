@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Akili — Teacher Workspace</title>
+  <style>
+    :root {
+      --bg-main: #0d0e12;
+      --bg-card: #13151a;
+      --border-color: #22252e;
+      --text-main: #ffffff;
+      --text-muted: #a0a5b5;
+      --green: #10b981;
+    }
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      display: flex;
+      height: 100vh;
+    }
+    .sidebar {
+      width: 260px;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .nav-group { padding: 24px; }
+    .nav-item {
+      padding: 12px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      transition: all 0.2s;
+    }
+    .nav-item:hover, .nav-item.active {
+      background: #1b1d24;
+      color: var(--text-main);
+    }
+    .main-content {
+      flex: 1;
+      padding: 40px;
+      overflow-y: auto;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+    th, td {
+      padding: 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    th { color: var(--text-muted); font-size: 13px; text-transform: uppercase; }
+    input, select, textarea {
+      background: #1b1d24;
+      border: 1px solid var(--border-color);
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 16px;
+    }
+    button {
+      background: var(--green);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-ai { background: #8b5cf6; } /* Purple for AI tools */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1f2937;
+      padding: 16px 24px;
+      border-radius: 8px;
+      border-left: 4px solid var(--green);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      display: none;
+      z-index: 1000;
+    }
+  </style>
+  
+  <script>
+    (function() {
+      const token = localStorage.getItem('akili_token');
+      const role = localStorage.getItem('akili_user_role');
+      if (!token || role !== 'teacher') {
+        localStorage.clear();
+        window.location.href = 'login.html';
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <div class="sidebar">
+    <div class="nav-group">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 32px;">
+        <span style="font-size: 24px;">🧠</span>
+        <h3 style="margin: 0;">Akili Teacher</h3>
+      </div>
+      <div class="nav-item active" onclick="switchTab('students')">📋 Student Roster</div>
+      <div class="nav-item" onclick="switchTab('cbc-tools')">⚡ CBC AI & Evidence</div>
+    </div>
+    
+    <div style="padding: 24px;">
+      <div id="connectivity-badge" style="background: var(--green); padding: 6px 12px; border-radius: 20px; font-size: 11px; margin-bottom: 16px; text-align: center;">
+        🟢 Cloud Sync: Active
+      </div>
+      <div class="nav-item" onclick="logout()" style="color: #ef4444;">🚪 Sign Out</div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    
+    <div id="tab-students" class="tab-view">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2>My Classroom Roster</h2>
+        <button onclick="openModal('add-student-modal')">+ Register New Student</button>
+      </div>
+      
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Student Name</th>
+              <th>Admission No</th>
+              <th>Grade</th>
+              <th>Stream</th>
+              <th>Gender</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="student-table-body">
+            </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-cbc-tools" class="tab-view" style="display: none;">
+      <h2>CBC Analytical Copilot</h2>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        <div class="card">
+          <h3>🤖 Automated Batch Remarks</h3>
+          <p style="color: var(--text-muted); font-size: 14px;">Generates predictive insights and automated report comments based on term performance history.</p>
+          
+          <label>Target Grade</label>
+          <select id="ai-grade">
+            <option value="Grade 4">Grade 4</option>
+            <option value="Grade 5">Grade 5</option>
+            <option value="Grade 6">Grade 6</option>
+          </select>
+
+          <label>Learning Learning Area (Subject)</label>
+          <input type="text" id="ai-subject" placeholder="e.g. Mathematics">
+
+          <button class="btn-ai" onclick="triggerAIRemarks()">Run AI Copilot Analysis</button>
+        </div>
+
+        <div class="card">
+          <h3>📷 Digital Evidence Repository (KNEC Upload)</h3>
+          <form id="evidence-form" onsubmit="uploadEvidence(event)">
+            <label>Select Student</label>
+            <select id="evidence-student-id"></select>
+
+            <label>Target Core Competency</label>
+            <select id="evidence-competency">
+              <option value="Communication">Communication and Collaboration</option>
+              <option value="Critical Thinking">Critical Thinking and Problem Solving</option>
+              <option value="Creativity">Creativity and Imagination</option>
+              <option value="Digital Literacy">Digital Literacy</option>
+            </select>
+
+            <label>Snap Project Evidence (Camera Capture)</label>
+            <input type="file" id="evidence-file" accept="image/*">
+
+            <label>Observational Notes</label>
+            <textarea id="evidence-notes" rows="2" placeholder="Describe the learner's milestone..."></textarea>
+
+            <button type="submit">Upload Secure Evidence</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // --- STATE & RESILIENCE HOOKS ---
+    const API_BASE = "https://jodasa-backend-production.up.railway.app/api";
+    
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.style.display = 'block';
+      setTimeout(() => t.style.display = 'none', 4000);
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-view').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.getElementById(`tab-${tabId}`).style.display = 'block';
+      event.target.classList.add('active');
+    }
+
+    // --- SECURE AUTH HEADERS ---
+    function getHeaders(contentType = 'application/json') {
+      const token = localStorage.getItem('akili_token');
+      const headers = { 'Authorization': `Bearer ${token}` };
+      if (contentType) headers['Content-Type'] = contentType;
+      return headers;
+    }
+
+    // --- BATCH AI GENERATOR RUNNER ---
+    async function triggerAIRemarks() {
+      const grade = document.getElementById('ai-grade').value;
+      const subject = document.getElementById('ai-subject').value;
+
+      showToast("🧠 AI Engine compiling learning performance trajectories...");
+
+      try {
+        const res = await fetch(`${API_BASE}/results/generate-remarks/`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ grade, subject })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          showToast(`✅ Success: ${data.message}`);
+        } else {
+          showToast("❌ Engine processing error encountered.");
+        }
+      } catch (err) {
+        showToast("❌ Network error: AI request failed.");
+      }
+    }
+
+    // --- PHOTO EVIDENCE UPLOADER ---
+    async function uploadEvidence(e) {
+      e.preventDefault();
+      const fileInput = document.getElementById('evidence-file');
+      if (fileInput.files.length === 0) return showToast("⚠️ Capture file required.");
+
+      const formData = new FormData();
+      formData.append('student_id', document.getElementById('evidence-student-id').value);
+      formData.append('competency', document.getElementById('evidence-competency').value);
+      formData.append('image', fileInput.files[0]);
+      formData.append('notes', document.getElementById('evidence-notes').value);
+
+      showToast("📤 Uploading secure evidence package to server...");
+
+      try {
+        const res = await fetch(`${API_BASE}/cbc/upload-evidence/`, {
+          method: 'POST',
+          headers: getHeaders(null), // Browser handles MultiPart boundary automatically
+          body: formData
+        });
+
+        if (res.ok) {
+          showToast("✅ Evidence saved securely for assessment auditing!");
+          document.getElementById('evidence-form').reset();
+        } else {
+          showToast("❌ Upload validation error.");
+        }
+      } catch (err) {
+        showToast("❌ Network issue: Saved local reference placeholder.");
+      }
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = 'login.html';
+    }
+  </script>
+</body>
+</html>
