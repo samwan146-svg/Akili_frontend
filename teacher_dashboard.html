@@ -135,7 +135,10 @@
     <div id="tab-students" class="tab-view">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <h2>My Classroom Roster</h2>
-        <button onclick="openModal('add-student-modal')">+ Register New Student</button>
+        <div style="display:flex; gap:12px;">
+          <button onclick="openModal('add-student-modal')">+ Register Student</button>
+          <button onclick="openModal('bulk-import-modal')" style="background:#22252e;">📥 Bulk Import CSV</button>
+        </div>
       </div>
       
       <div class="card">
@@ -247,6 +250,43 @@
     </div>
   </div>
 
+  <div id="bulk-import-modal" style="
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6);
+  z-index:999; align-items:center; justify-content:center;">
+  <div style="background:#13151a; border:1px solid #22252e; border-radius:16px; padding:32px; width:100%; max-width:480px;">
+    <h3 style="margin:0 0 8px 0;">Bulk Import Students</h3>
+    <p style="color:var(--text-muted); font-size:13px; margin-bottom:24px;">
+      Upload a CSV file with your class register. Required columns: 
+      <strong style="color:white;">first_name, last_name, grade</strong>. 
+      Optional: stream, gender, admission_number.
+    </p>
+
+    <a href="#" onclick="downloadTemplate()" style="
+      display:inline-block; margin-bottom:20px; font-size:13px;
+      color:var(--green); text-decoration:none;">
+      ⬇ Download CSV Template
+    </a>
+
+    <label style="font-size:12px; color:var(--text-muted);">Select CSV File</label>
+    <input type="file" id="bulk-csv-file" accept=".csv" style="margin-bottom:8px;" onchange="toggleBulkImportButton()">
+
+    <div id="import-progress" style="display:none; margin-bottom:16px;">
+      <div style="background:#22252e; border-radius:8px; height:6px;">
+        <div id="import-progress-bar" style="background:var(--green); height:6px; border-radius:8px; width:0%; transition:width 0.3s;"></div>
+      </div>
+      <p id="import-status" style="font-size:12px; color:var(--text-muted); margin-top:8px;"></p>
+    </div>
+
+    <div id="import-errors" style="display:none; background:#1b1d24; border-radius:8px; padding:12px; margin-bottom:16px; max-height:120px; overflow-y:auto;">
+    </div>
+
+    <div style="display:flex; gap:12px; margin-top:8px;">
+      <button onclick="closeBulkModal()" style="background:#22252e; flex:1;">Cancel</button>
+      <button id="bulk-import-submit" onclick="submitBulkImport()" style="flex:2; opacity:0.5; cursor:not-allowed;" disabled>Import Students</button>
+    </div>
+  </div>
+</div>
+
   <div id="toast" class="toast"></div>
 
   <script>
@@ -340,6 +380,95 @@
 function openModal(id) {
   const modal = document.getElementById(id);
   if (modal) modal.style.display = 'flex';
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.style.display = 'none';
+}
+
+function downloadTemplate() {
+  const csv = `first_name,last_name,grade,stream,gender,admission_number
+Amina,Wanjiru,Grade 4,North,Female,ADM001
+Brian,Otieno,Grade 4,North,Male,ADM002
+Cynthia,Kamau,Grade 5,South,Female,ADM003`;
+  
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'akili_student_template.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function closeBulkModal() {
+  document.getElementById('bulk-import-modal').style.display = 'none';
+  document.getElementById('bulk-csv-file').value = '';
+  document.getElementById('import-progress').style.display = 'none';
+  document.getElementById('import-errors').style.display = 'none';
+  toggleBulkImportButton();
+}
+
+function toggleBulkImportButton() {
+  const input = document.getElementById('bulk-csv-file');
+  const button = document.getElementById('bulk-import-submit');
+  if (!button) return;
+  const enabled = input && input.files.length > 0;
+  button.disabled = !enabled;
+  button.style.opacity = enabled ? '1' : '0.5';
+  button.style.cursor = enabled ? 'pointer' : 'not-allowed';
+}
+
+async function submitBulkImport() {
+  const fileInput = document.getElementById('bulk-csv-file');
+  if (!fileInput.files.length) {
+    showToast("⚠️ Please select a CSV file.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  // Show progress
+  document.getElementById('import-progress').style.display = 'block';
+  document.getElementById('import-progress-bar').style.width = '40%';
+  document.getElementById('import-status').innerText = 'Uploading and processing...';
+
+  try {
+    const res = await fetch(`${API_BASE}/students/bulk-import/`, {
+      method: 'POST',
+      headers: getHeaders(null),
+      body: formData
+    });
+
+    document.getElementById('import-progress-bar').style.width = '100%';
+    const data = await res.json();
+
+    document.getElementById('import-status').innerText = data.message;
+
+    // Show any row-level errors
+    if (data.errors && data.errors.length > 0) {
+      const errBox = document.getElementById('import-errors');
+      errBox.style.display = 'block';
+      errBox.innerHTML = `
+        <p style="font-size:12px; color:#f59e0b; margin-bottom:8px;">
+          ⚠️ ${data.errors.length} row(s) had issues:
+        </p>
+        ${data.errors.map(e => `<p style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">• ${e}</p>`).join('')}
+      `;
+    }
+
+    if (data.created > 0) {
+      showToast(`✅ ${data.created} students imported successfully!`);
+      loadStudents(); // refresh the roster
+    }
+
+  } catch (err) {
+    document.getElementById('import-status').innerText = 'Import failed.';
+    showToast("❌ Network error during import.");
+    console.error(err);
+  }
 }
 
 function closeStudentModal() {
