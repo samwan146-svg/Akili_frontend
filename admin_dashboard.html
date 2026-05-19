@@ -125,8 +125,8 @@
         <span style="font-size: 24px;">🏛️</span>
         <h3 style="margin: 0;">Akili Admin</h3>
       </div>
-      <div class="nav-item active" onclick="switchTab('finance')">💰 Financial Engine</div>
-      <div class="nav-item" onclick="switchTab('settings')">⚙️ School Settings</div>
+      <div class="nav-item active" onclick="switchTab('finance', event)">💰 Financial Engine</div>
+      <div class="nav-item" onclick="switchTab('settings', event)">⚙️ School Settings</div>
     </div>
     
     <div style="padding: 24px;">
@@ -224,89 +224,141 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    const API_BASE = "https://jodasa-backend-production.up.railway.app/api";
+  const API_BASE = "https://jodasa-backend-production.up.railway.app/api";
 
-    function showToast(msg) {
-      const t = document.getElementById('toast');
-      t.innerText = msg;
-      t.style.display = 'block';
-      setTimeout(() => t.style.display = 'none', 4000);
-    }
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg;
+    t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', 4000);
+  }
 
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-view').forEach(el => el.style.display = 'none');
-      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-      document.getElementById(`tab-${tabId}`).style.display = 'block';
-      event.target.classList.add('active');
-    }
+  function switchTab(tabId, e) {
+    document.querySelectorAll('.tab-view').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    document.getElementById(`tab-${tabId}`).style.display = 'block';
+    e.target.classList.add('active');
+  }
 
-    function getHeaders(contentType = 'application/json') {
-      const token = localStorage.getItem('akili_token');
-      const headers = { 'Authorization': `Bearer ${token}` };
-      if (contentType) headers['Content-Type'] = contentType;
-      return headers;
-    }
+  function getHeaders(contentType = 'application/json') {
+    const token = localStorage.getItem('akili_token');
+    const headers = { 'Authorization': `Bearer ${token}` };
+    if (contentType) headers['Content-Type'] = contentType;
+    return headers;
+  }
 
-    // --- SAVE SCHOOL DARAJA GATEWAY KEYS ---
-    async function saveGatewayConfig(e) {
-      e.preventDefault();
-      showToast("🔐 Encrypting and updating institutional gateway channels...");
-      
-      const payload = {
-        mpesa_shortcode: document.getElementById('mpesa-shortcode').value,
-        mpesa_consumer_key: document.getElementById('mpesa-key').value,
-        mpesa_consumer_secret: document.getElementById('mpesa-secret').value
-      };
-
-      try {
-        const res = await fetch(`${API_BASE}/school/settings/`, {
-          method: 'PATCH',
-          headers: getHeaders(),
-          body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-          showToast("✅ Gateway configurations locked down successfully!");
-        } else {
-          showToast("❌ Failed to commit API settings.");
-        }
-      } catch (err) {
-        showToast("❌ Network error: Gateway sync failed.");
+  // --- LOAD PAYMENT TABLE ON PAGE LOAD ---
+  async function loadPayments() {
+    try {
+      const res = await fetch(`${API_BASE}/payments/`, { headers: getHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const rows = data.results || data; // handles paginated or plain list
+      const tbody = document.getElementById('payment-table-body');
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="color:var(--text-muted); text-align:center;">No payments recorded yet.</td></tr>`;
+        return;
       }
+      tbody.innerHTML = rows.map(p => `
+        <tr>
+          <td>${p.mpesa_receipt || '—'}</td>
+          <td>KES ${Number(p.amount_paid).toLocaleString()}</td>
+          <td>
+            <span style="
+              padding: 4px 10px; border-radius: 20px; font-size: 12px;
+              background: ${p.status === 'Completed' ? 'rgba(16,185,129,0.15)' : p.status === 'Failed' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)'};
+              color: ${p.status === 'Completed' ? '#10b981' : p.status === 'Failed' ? '#ef4444' : '#f59e0b'};
+            ">${p.status}</span>
+          </td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      console.error('Payment load failed:', err);
     }
+  }
 
-    // --- HANDLING LOGO UPLOADS IN PRODUCTION ---
-    async function uploadSchoolLogo(e) {
-      e.preventDefault();
-      const fileInput = document.getElementById('logo-file');
-      if (fileInput.files.length === 0) return;
+  // --- SAVE FEE STRUCTURE ---
+  async function saveFeeStructure(e) {
+    e.preventDefault();
+    const payload = {
+      grade: document.getElementById('fee-grade').value,
+      term: document.getElementById('fee-term').value,
+      total_amount: document.getElementById('fee-amount').value,
+    };
 
-      const formData = new FormData();
-      formData.append('logo', fileInput.files[0]);
-
-      showToast("🎨 Synchronizing brand assets with system file servers...");
-
-      try {
-        const res = await fetch(`${API_BASE}/school/settings/`, {
-          method: 'PATCH',
-          headers: getHeaders(null), // Boundary compiled natively by browser engines
-          body: formData
-        });
-
-        if (res.ok) {
-          showToast("✅ System logo deployed onto production storage cloud!");
-        } else {
-          showToast("❌ File validation error occurred.");
-        }
-      } catch (err) {
-        showToast("❌ Network barrier: Logo cloud sync interrupted.");
+    try {
+      const res = await fetch(`${API_BASE}/fees/`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        showToast("✅ Fee structure published successfully!");
+        document.getElementById('fee-structure-form').reset();
+      } else {
+        showToast("❌ Failed to save fee structure.");
       }
+    } catch (err) {
+      showToast("❌ Network error saving fee structure.");
     }
+  }
 
-    function logout() {
-      localStorage.clear();
-      window.location.href = 'login.html';
+  // --- SAVE DARAJA CREDENTIALS ---
+  async function saveGatewayConfig(e) {
+    e.preventDefault();
+    showToast("🔐 Updating gateway credentials...");
+    const payload = {
+      mpesa_shortcode: document.getElementById('mpesa-shortcode').value,
+      mpesa_consumer_key: document.getElementById('mpesa-key').value,
+      mpesa_consumer_secret: document.getElementById('mpesa-secret').value
+    };
+    try {
+      const res = await fetch(`${API_BASE}/school/settings/`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        showToast("✅ Gateway credentials saved!");
+      } else {
+        showToast("❌ Failed to save credentials.");
+      }
+    } catch (err) {
+      showToast("❌ Network error.");
     }
-  </script>
+  }
+
+  // --- UPLOAD SCHOOL LOGO ---
+  async function uploadSchoolLogo(e) {
+    e.preventDefault();
+    const fileInput = document.getElementById('logo-file');
+    if (!fileInput.files.length) return;
+    const formData = new FormData();
+    formData.append('logo', fileInput.files[0]);
+    showToast("🎨 Uploading logo...");
+    try {
+      const res = await fetch(`${API_BASE}/school/settings/`, {
+        method: 'PATCH',
+        headers: getHeaders(null),
+        body: formData
+      });
+      if (res.ok) {
+        showToast("✅ Logo deployed!");
+      } else {
+        showToast("❌ Logo upload failed.");
+      }
+    } catch (err) {
+      showToast("❌ Network error.");
+    }
+  }
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = 'login.html';
+  }
+
+  // Boot
+  document.addEventListener('DOMContentLoaded', loadPayments);
+</script>
 </body>
 </html>

@@ -121,8 +121,8 @@
         <span style="font-size: 24px;">🏡</span>
         <h3 style="margin: 0;">Family Portal</h3>
       </div>
-      <div class="nav-item active" onclick="switchTab('overview')">📊 Performance Trends</div>
-      <div class="nav-item" onclick="switchTab('billing')">💳 Fees & Payments</div>
+        <div class="nav-item active" onclick="switchTab('overview', event)">📊 Performance Trends</div>
+        <div class="nav-item" onclick="switchTab('billing', event)">💳 Fees & Payments</div>
     </div>
     
     <div style="padding: 24px;">
@@ -191,63 +191,193 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    const API_BASE = "https://jodasa-backend-production.up.railway.app/api";
+  const API_BASE = "https://jodasa-backend-production.up.railway.app/api";
+  let linkedStudentId = null;
 
-    function showToast(msg) {
-      const t = document.getElementById('toast');
-      t.innerText = msg;
-      t.style.display = 'block';
-      setTimeout(() => t.style.display = 'none', 4000);
-    }
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg;
+    t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', 4000);
+  }
 
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-view').forEach(el => el.style.display = 'none');
-      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-      document.getElementById(`tab-${tabId}`).style.display = 'block';
-      event.target.classList.add('active');
-    }
+  function switchTab(tabId, e) {
+    document.querySelectorAll('.tab-view').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    document.getElementById(`tab-${tabId}`).style.display = 'block';
+    e.target.classList.add('active');
+  }
 
-    function getHeaders() {
-      return {
-        'Authorization': `Bearer ${localStorage.getItem('akili_token')}`,
-        'Content-Type': 'application/json'
-      };
-    }
+  function getHeaders() {
+    return {
+      'Authorization': `Bearer ${localStorage.getItem('akili_token')}`,
+      'Content-Type': 'application/json'
+    };
+  }
 
-    // --- TRIGGER LIVE M-PESA STK PUSH ENGINE ---
-    async function triggerStkPush(e) {
-      e.preventDefault();
-      const phone = document.getElementById('parent-phone').value;
-      const amount = document.getElementById('payment-amount').value;
-
-      showToast("🚀 Handshaking with Safaricom Daraja API... Keep your phone unlocked.");
-
-      try {
-        const res = await fetch(`${API_BASE}/payments/initiate/`, {
-          method: 'POST',
-          headers: getHeaders(),
-          body: JSON.stringify({
-            phone: phone,
-            amount: amount,
-            student_id: 1 // Fallback mock placeholder, resolved dynamically on runtime loop
-          })
-        });
-
-        if (res.ok) {
-          showToast("📲 STK Push Prompt broadcast successfully! Complete transaction via PIN entry.");
-          document.getElementById('payment-trigger-form').reset();
-        } else {
-          showToast("❌ Unable to trigger payment. Verify your phone digits format.");
-        }
-      } catch (err) {
-        showToast("❌ Network error processing gateway request.");
+  // --- BOOT: resolve who is logged in, then load their data ---
+  async function loadPortalData() {
+    try {
+      const res = await fetch(`${API_BASE}/me/`, { headers: getHeaders() });
+      if (!res.ok) {
+        showToast("❌ Session expired. Please log in again.");
+        setTimeout(() => { localStorage.clear(); window.location.href = 'login.html'; }, 2000);
+        return;
       }
+      const user = await res.json();
+      const role = localStorage.getItem('akili_user_role');
+
+      if (role === 'student') {
+        // Students have a direct profile — fetch their own student profile
+        await loadStudentProfile(user);
+      } else if (role === 'parent') {
+        // Phase 4: once parent->student link exists, resolve child here
+        // For now show a message that links aren't set up yet
+        document.getElementById('analytics-target-container').innerHTML = `
+          <p style="color:var(--text-muted);">
+            Parent-student linking is being configured. Contact your school admin.
+          </p>`;
+      }
+    } catch (err) {
+      showToast("❌ Network error loading portal.");
+      console.error(err);
+    }
+  }
+
+  async function loadStudentProfile(user) {
+    try {
+      // Fetch all students and find this user's profile by email match
+      // This works because the student is logged in with their own account
+      const res = await fetch(`${API_BASE}/students/`, { headers: getHeaders() });
+      
+      if (!res.ok) {
+        document.getElementById('analytics-target-container').innerHTML =
+          `<p style="color:var(--text-muted);">Unable to load academic data.</p>`;
+        return;
+      }
+
+      const data = await res.json();
+      const students = data.results || data;
+      const mine = students.find(s => s.email === user.email);
+
+      if (!mine) {
+        document.getElementById('analytics-target-container').innerHTML =
+          `<p style="color:var(--text-muted);">No student profile linked to this account yet.</p>`;
+        return;
+      }
+
+      linkedStudentId = mine.id;
+      await loadReportCard(linkedStudentId);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function loadReportCard(studentId) {
+    try {
+      const res = await fetch(`${API_BASE}/students/${studentId}/report/`, {
+        headers: getHeaders()
+      });
+
+      if (!res.ok) {
+        document.getElementById('analytics-target-container').innerHTML =
+          `<p style="color:var(--text-muted);">No assessment records found yet.</p>`;
+        return;
+      }
+
+      const data = await res.json();
+      const container = document.getElementById('analytics-target-container');
+
+      if (!data.subjects || data.subjects.length === 0) {
+        container.innerHTML = `<p style="color:var(--text-muted);">No results recorded yet.</p>`;
+        return;
+      }
+
+      // Summary bar
+      const s = data.summary;
+      const summaryBar = `
+        <div style="display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
+          <div style="background:#1b1d24; padding:12px 20px; border-radius:8px; text-align:center;">
+            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase;">Total</div>
+            <div style="font-size:18px; font-weight:700;">${s.total_marks}</div>
+          </div>
+          <div style="background:#1b1d24; padding:12px 20px; border-radius:8px; text-align:center;">
+            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase;">Average</div>
+            <div style="font-size:18px; font-weight:700; color:var(--green);">${s.average_percentage}%</div>
+          </div>
+          <div style="background:#1b1d24; padding:12px 20px; border-radius:8px; text-align:center;">
+            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase;">EE / ME / AE / BE</div>
+            <div style="font-size:14px; font-weight:600;">${s.competency_summary.EE} / ${s.competency_summary.ME} / ${s.competency_summary.AE} / ${s.competency_summary.BE}</div>
+          </div>
+        </div>
+      `;
+
+      // Subject cards
+      const subjectCards = data.subjects.map(sub => {
+        const color = sub.competency_level.includes('EE') ? '#10b981'
+          : sub.competency_level.includes('ME') ? '#3b82f6'
+          : sub.competency_level.includes('AE') ? '#f59e0b'
+          : '#ef4444';
+        return `
+          <div style="border-left:3px solid ${color}; padding-left:16px; margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h4 style="margin:0 0 4px 0;">${sub.subject}</h4>
+              <span style="font-size:12px; color:${color};">${sub.competency_level}</span>
+            </div>
+            <p style="margin:0 0 4px 0; font-size:13px; color:var(--text-muted);">
+              ${sub.marks} &nbsp;·&nbsp; ${sub.term}
+            </p>
+            <p style="margin:0; font-size:13px;">${sub.teacher_remarks || 'No remarks yet.'}</p>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = summaryBar + subjectCards;
+
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  // --- M-PESA STK PUSH ---
+  async function triggerStkPush(e) {
+    e.preventDefault();
+
+    if (!linkedStudentId) {
+      showToast("⚠️ Student profile not linked yet. Cannot initiate payment.");
+      return;
     }
 
-    function logout() {
-      localStorage.clear();
-      window.location.href = 'login.html';
+    const phone = document.getElementById('parent-phone').value;
+    const amount = document.getElementById('payment-amount').value;
+
+    showToast("🚀 Sending STK Push... Keep your phone unlocked.");
+
+    try {
+      const res = await fetch(`${API_BASE}/payments/initiate/`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ phone, amount, student_id: linkedStudentId })
+      });
+
+      if (res.ok) {
+        showToast("📲 STK Push sent! Check your phone and enter your M-Pesa PIN.");
+        document.getElementById('payment-trigger-form').reset();
+      } else {
+        const err = await res.json();
+        showToast(`❌ ${err.detail || 'Payment initiation failed.'}`);
+      }
+    } catch (err) {
+      showToast("❌ Network error. Try again.");
     }
-  </script>
+  }
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = 'login.html';
+  }
+
+  document.addEventListener('DOMContentLoaded', loadPortalData);
+</script>
 </body>
 </html>

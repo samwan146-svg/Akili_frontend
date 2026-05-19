@@ -39,7 +39,7 @@
       const password = document.getElementById('auth-password').value;
 
       try {
-        const res = await fetch('https://jodasa-backend-production.up.railway.app/api/token/', {
+        const res = await fetch('https://jodasa-backend-production.up.railway.app/api/login/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -50,7 +50,9 @@
           
           // Store tokens securely in browser memory
           localStorage.setItem('akili_token', data.access);
+          localStorage.setItem('akili_refresh', data.refresh);
           localStorage.setItem('akili_user_role', data.role_name.toLowerCase()); // e.g., 'admin', 'teacher', 'parent'
+          localStorage.setItem('akili_school_name', data.school_name);
 
           // Route immediately based on security clearance
           routeUserRole(data.role_name.toLowerCase());
