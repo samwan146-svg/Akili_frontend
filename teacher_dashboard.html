@@ -205,6 +205,48 @@
 
   </div>
 
+  <div id="add-student-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#13151a; border:1px solid #22252e; border-radius:16px; padding:36px; width:100%; max-width:480px;">
+      <h3 style="margin:0 0 24px 0;">Register New Student</h3>
+
+      <label style="color:var(--text-muted); font-size:12px;">First Name</label>
+      <input type="text" id="s-firstname" placeholder="e.g. Amina">
+
+      <label style="color:var(--text-muted); font-size:12px;">Last Name</label>
+      <input type="text" id="s-lastname" placeholder="e.g. Wanjiru">
+
+      <label style="color:var(--text-muted); font-size:12px;">Email Address</label>
+      <input type="email" id="s-email" placeholder="e.g. amina@school.ac.ke">
+
+      <label style="color:var(--text-muted); font-size:12px;">Grade</label>
+      <select id="s-grade">
+        <option value="Grade 1">Grade 1</option>
+        <option value="Grade 2">Grade 2</option>
+        <option value="Grade 3">Grade 3</option>
+        <option value="Grade 4">Grade 4</option>
+        <option value="Grade 5">Grade 5</option>
+        <option value="Grade 6">Grade 6</option>
+        <option value="Grade 7">Grade 7</option>
+        <option value="Grade 8">Grade 8</option>
+        <option value="Grade 9">Grade 9</option>
+      </select>
+
+      <label style="color:var(--text-muted); font-size:12px;">Stream</label>
+      <input type="text" id="s-stream" placeholder="e.g. East, Blue, Umoja">
+
+      <label style="color:var(--text-muted); font-size:12px;">Gender</label>
+      <select id="s-gender">
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+      </select>
+
+      <div style="display:flex; gap:12px; margin-top:8px;">
+        <button onclick="closeStudentModal()" style="flex:1; background:#1b1d24; color:var(--text-muted);">Cancel</button>
+        <button onclick="submitNewStudent()" style="flex:1;">Register Student</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast"></div>
 
   <script>
@@ -415,48 +457,5 @@ async function loadStudents() {
     // --- INITIAL DATA LOAD ---
     loadStudents();    
   </script>
-
-<div id="add-student-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
-  <div style="background:#13151a; border:1px solid #22252e; border-radius:16px; padding:36px; width:100%; max-width:480px;">
-    <h3 style="margin:0 0 24px 0;">Register New Student</h3>
-
-    <label style="color:var(--text-muted); font-size:12px;">First Name</label>
-    <input type="text" id="s-firstname" placeholder="e.g. Amina">
-
-    <label style="color:var(--text-muted); font-size:12px;">Last Name</label>
-    <input type="text" id="s-lastname" placeholder="e.g. Wanjiru">
-
-    <label style="color:var(--text-muted); font-size:12px;">Email Address</label>
-    <input type="email" id="s-email" placeholder="e.g. amina@school.ac.ke">
-
-    <label style="color:var(--text-muted); font-size:12px;">Grade</label>
-    <select id="s-grade">
-      <option value="Grade 1">Grade 1</option>
-      <option value="Grade 2">Grade 2</option>
-      <option value="Grade 3">Grade 3</option>
-      <option value="Grade 4">Grade 4</option>
-      <option value="Grade 5">Grade 5</option>
-      <option value="Grade 6">Grade 6</option>
-      <option value="Grade 7">Grade 7</option>
-      <option value="Grade 8">Grade 8</option>
-      <option value="Grade 9">Grade 9</option>
-    </select>
-
-    <label style="color:var(--text-muted); font-size:12px;">Stream</label>
-    <input type="text" id="s-stream" placeholder="e.g. East, Blue, Umoja">
-
-    <label style="color:var(--text-muted); font-size:12px;">Gender</label>
-    <select id="s-gender">
-      <option value="Male">Male</option>
-      <option value="Female">Female</option>
-    </select>
-
-    <div style="display:flex; gap:12px; margin-top:8px;">
-      <button onclick="closeStudentModal()" style="flex:1; background:#1b1d24; color:var(--text-muted);">Cancel</button>
-      <button onclick="submitNewStudent()" style="flex:1;">Register Student</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
