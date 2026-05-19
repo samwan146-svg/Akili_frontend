@@ -150,6 +150,8 @@
               <th>Grade</th>
               <th>Stream</th>
               <th>Gender</th>
+              <th>Term</th>
+              <th>Report</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -546,6 +548,35 @@ async function submitNewStudent() {
   }
 }
 
+function downloadReport(studentId) {
+  const term = document.getElementById(`term-${studentId}`).value;
+  const url = term
+    ? `${API_BASE}/students/${studentId}/report/pdf/?term=${encodeURIComponent(term)}`
+    : `${API_BASE}/students/${studentId}/report/pdf/`;
+
+  const token = localStorage.getItem('akili_token');
+
+  // Fetch with auth header then trigger download
+  fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+    .then(res => {
+      if (!res.ok) {
+        showToast("❌ No results found for this student/term.");
+        return;
+      }
+      return res.blob();
+    })
+    .then(blob => {
+      if (!blob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `report_${studentId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast("✅ Report card downloaded!");
+    })
+    .catch(() => showToast("❌ Failed to download report."));
+}
+
 async function loadStudents() {
   try {
     const res = await fetch(`${API_BASE}/students/`, { headers: getHeaders() });
@@ -558,7 +589,7 @@ async function loadStudents() {
 
     const tbody = document.getElementById('student-table-body');
     if (students.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" style="color:var(--text-muted); text-align:center;">No students registered yet.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="color:var(--text-muted); text-align:center;">No students registered yet.</td></tr>`;
       return;
     }
 
@@ -570,6 +601,18 @@ async function loadStudents() {
         <td>${s.stream || '—'}</td>
         <td>${s.gender || '—'}</td>
         <td><span style="color:var(--green); font-size:12px;">● Active</span></td>
+        <td>
+          <select id="term-${s.id}" style="padding:4px 8px; font-size:12px; margin-bottom:0; width:auto;">
+            <option value="">All Terms</option>
+            <option value="Term 1">Term 1</option>
+            <option value="Term 2">Term 2</option>
+            <option value="Term 3">Term 3</option>
+          </select>
+          <button onclick="downloadReport(${s.id})" 
+            style="padding:6px 12px; font-size:12px; margin-left:8px; background:#1a6b3c;">
+            📄 Report
+          </button>
+        </td>
       </tr>
     `).join('');
 
