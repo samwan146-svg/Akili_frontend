@@ -33,29 +33,46 @@
   </div>
 
   <script>
-    const MOCK_MODE = true; // flip to false when Railway is back
+    const MOCK_MODE = false;
+
+    const MOCK_USERS = {
+      'admin@akili.ke':   { password: 'admin123',   role: 'admin',   school: 'Demo Primary School' },
+      'teacher@akili.ke': { password: 'teacher123', role: 'teacher', school: 'Demo Primary School' },
+      'parent@akili.ke':  { password: 'parent123',  role: 'parent',  school: 'Demo Primary School' },
+    };
+
     async function handleAuth(event) {
       event.preventDefault();
-      const email = document.getElementById('auth-email').value;
+      const email = document.getElementById('auth-email').value.trim();
       const password = document.getElementById('auth-password').value;
 
+      if (MOCK_MODE) {
+        const user = MOCK_USERS[email];
+        if (!user || user.password !== password) {
+          alert("❌ Invalid credentials.\n\nTry:\nadmin@akili.ke / admin123\nteacher@akili.ke / teacher123\nparent@akili.ke / parent123");
+          return;
+        }
+        localStorage.setItem('akili_token', 'mock_token');
+        localStorage.setItem('akili_refresh', 'mock_refresh');
+        localStorage.setItem('akili_user_role', user.role);
+        localStorage.setItem('akili_school_name', user.school);
+        routeUserRole(user.role);
+        return;
+      }
+
+      // Real backend login
       try {
-        const res = await fetch('https://jodasa-backend-production.up.railway.app/api/login/', {
+        const res = await fetch('https://jodasa-backend.onrender.com/api/login/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
-
         if (res.ok) {
           const data = await res.json();
-          
-          // Store tokens securely in browser memory
           localStorage.setItem('akili_token', data.access);
           localStorage.setItem('akili_refresh', data.refresh);
-          localStorage.setItem('akili_user_role', data.role_name.toLowerCase()); // e.g., 'admin', 'teacher', 'parent'
+          localStorage.setItem('akili_user_role', data.role_name.toLowerCase());
           localStorage.setItem('akili_school_name', data.school_name);
-
-          // Route immediately based on security clearance
           routeUserRole(data.role_name.toLowerCase());
         } else {
           alert("❌ Invalid credentials. Please try again.");
@@ -71,7 +88,7 @@
       } else if (role === 'teacher') {
         window.location.href = 'teacher_dashboard.html';
       } else {
-        window.location.href = 'portal.html'; // Shared Student/Parent view
+        window.location.href = 'portal.html';
       }
     }
   </script>
