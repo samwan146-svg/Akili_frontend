@@ -74,6 +74,7 @@
       width: 100%;
       box-sizing: border-box;
       margin-bottom: 16px;
+      outline: none;
     }
     button {
       background: var(--green);
@@ -84,7 +85,7 @@
       font-weight: 600;
       cursor: pointer;
     }
-    .btn-ai { background: #8b5cf6; } /* Purple for AI tools */
+    .btn-ai { background: #8b5cf6; }
     .toast {
       position: fixed;
       bottom: 24px;
@@ -105,7 +106,7 @@
       const role = localStorage.getItem('akili_user_role');
       if (!token || role !== 'teacher') {
         localStorage.clear();
-        window.location.href = 'login.html';
+        window.location.href = 'index.html';
       }
     })();
   </script>
@@ -150,13 +151,14 @@
               <th>Grade</th>
               <th>Stream</th>
               <th>Gender</th>
-              <th>Term</th>
-              <th>Report</th>
               <th>Status</th>
+              <th>Target Assessment Term</th>
+              <th>Report Actions</th>
             </tr>
           </thead>
           <tbody id="student-table-body">
-            </tbody>
+            <tr><td colspan="8" style="color:var(--text-muted); text-align:center;">Synchronizing data with Render ledger...</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
@@ -176,7 +178,7 @@
             <option value="Grade 6">Grade 6</option>
           </select>
 
-          <label>Learning Learning Area (Subject)</label>
+          <label>Learning Area (Subject)</label>
           <input type="text" id="ai-subject" placeholder="e.g. Mathematics">
 
           <button class="btn-ai" onclick="triggerAIRemarks()">Run AI Copilot Analysis</button>
@@ -186,7 +188,9 @@
           <h3>📷 Digital Evidence Repository (KNEC Upload)</h3>
           <form id="evidence-form" onsubmit="uploadEvidence(event)">
             <label>Select Student</label>
-            <select id="evidence-student-id"></select>
+            <select id="evidence-student-id">
+              <option value="">-- Load student list first --</option>
+            </select>
 
             <label>Target Core Competency</label>
             <select id="evidence-competency">
@@ -252,49 +256,42 @@
     </div>
   </div>
 
-  <div id="bulk-import-modal" style="
-  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6);
-  z-index:999; align-items:center; justify-content:center;">
-  <div style="background:#13151a; border:1px solid #22252e; border-radius:16px; padding:32px; width:100%; max-width:480px;">
-    <h3 style="margin:0 0 8px 0;">Bulk Import Students</h3>
-    <p style="color:var(--text-muted); font-size:13px; margin-bottom:24px;">
-      Upload a CSV file with your class register. Required columns: 
-      <strong style="color:white;">first_name, last_name, grade</strong>. 
-      Optional: stream, gender, admission_number.
-    </p>
+  <div id="bulk-import-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:999; align-items:center; justify-content:center;">
+    <div style="background:#13151a; border:1px solid #22252e; border-radius:16px; padding:32px; width:100%; max-width:480px;">
+      <h3 style="margin:0 0 8px 0;">Bulk Import Students</h3>
+      <p style="color:var(--text-muted); font-size:13px; margin-bottom:24px;">
+        Upload a CSV file with your class register. Required columns: 
+        <strong style="color:white;">first_name, last_name, grade</strong>.
+      </p>
 
-    <a href="#" onclick="downloadTemplate()" style="
-      display:inline-block; margin-bottom:20px; font-size:13px;
-      color:var(--green); text-decoration:none;">
-      ⬇ Download CSV Template
-    </a>
+      <a href="#" onclick="downloadTemplate()" style="display:inline-block; margin-bottom:20px; font-size:13px; color:var(--green); text-decoration:none;">
+        纽 Download CSV Template
+      </a>
 
-    <label style="font-size:12px; color:var(--text-muted);">Select CSV File</label>
-    <input type="file" id="bulk-csv-file" accept=".csv" style="margin-bottom:8px;" onchange="toggleBulkImportButton()">
+      <br>
+      <label style="font-size:12px; color:var(--text-muted);">Select CSV File</label>
+      <input type="file" id="bulk-csv-file" accept=".csv" style="margin-bottom:8px;" onchange="toggleBulkImportButton()">
 
-    <div id="import-progress" style="display:none; margin-bottom:16px;">
-      <div style="background:#22252e; border-radius:8px; height:6px;">
-        <div id="import-progress-bar" style="background:var(--green); height:6px; border-radius:8px; width:0%; transition:width 0.3s;"></div>
+      <div id="import-progress" style="display:none; margin-bottom:16px;">
+        <div style="background:#22252e; border-radius:8px; height:6px;">
+          <div id="import-progress-bar" style="background:var(--green); height:6px; border-radius:8px; width:0%; transition:width 0.3s;"></div>
+        </div>
+        <p id="import-status" style="font-size:12px; color:var(--text-muted); margin-top:8px;"></p>
       </div>
-      <p id="import-status" style="font-size:12px; color:var(--text-muted); margin-top:8px;"></p>
-    </div>
 
-    <div id="import-errors" style="display:none; background:#1b1d24; border-radius:8px; padding:12px; margin-bottom:16px; max-height:120px; overflow-y:auto;">
-    </div>
+      <div id="import-errors" style="display:none; background:#1b1d24; border-radius:8px; padding:12px; margin-bottom:16px; max-height:120px; overflow-y:auto;"></div>
 
-    <div style="display:flex; gap:12px; margin-top:8px;">
-      <button onclick="closeBulkModal()" style="background:#22252e; flex:1;">Cancel</button>
-      <button id="bulk-import-submit" onclick="submitBulkImport()" style="flex:2; opacity:0.5; cursor:not-allowed;" disabled>Import Students</button>
+      <div style="display:flex; gap:12px; margin-top:8px;">
+        <button onclick="closeBulkModal()" style="background:#22252e; flex:1;">Cancel</button>
+        <button id="bulk-import-submit" onclick="submitBulkImport()" style="flex:2; opacity:0.5; cursor:not-allowed;" disabled>Import Students</button>
+      </div>
     </div>
   </div>
-</div>
 
   <div id="toast" class="toast"></div>
 
   <script>
-    // --- STATE & RESILIENCE HOOKS ---
-    const MOCK_MODE = false; // flip to false when Railway is back
-    const API_BASE = "https://jodasa-backend.onrender.com/api/";
+    const API_BASE = "https://jodasa-backend.onrender.com/api";
 
     function showToast(msg) {
       const t = document.getElementById('toast');
@@ -310,7 +307,6 @@
       event.target.classList.add('active');
     }
 
-    // --- SECURE AUTH HEADERS ---
     function getHeaders(contentType = 'application/json') {
       const token = localStorage.getItem('akili_token');
       const headers = { 'Authorization': `Bearer ${token}` };
@@ -318,10 +314,10 @@
       return headers;
     }
 
-    // --- BATCH AI GENERATOR RUNNER ---
     async function triggerAIRemarks() {
       const grade = document.getElementById('ai-grade').value;
       const subject = document.getElementById('ai-subject').value;
+      if(!subject) return showToast("⚠️ Subject learning area entry missing.");
 
       showToast("🧠 AI Engine compiling learning performance trajectories...");
 
@@ -334,7 +330,7 @@
 
         if (res.ok) {
           const data = await res.json();
-          showToast(`✅ Success: ${data.message}`);
+          showToast(`✅ Success: ${data.message || 'Remarks drafted smoothly.'}`);
         } else {
           showToast("❌ Engine processing error encountered.");
         }
@@ -343,14 +339,16 @@
       }
     }
 
-    // --- PHOTO EVIDENCE UPLOADER ---
     async function uploadEvidence(e) {
       e.preventDefault();
+      const studentId = document.getElementById('evidence-student-id').value;
       const fileInput = document.getElementById('evidence-file');
-      if (fileInput.files.length === 0) return showToast("⚠️ Capture file required.");
+      
+      if (!studentId) return showToast("⚠️ Please select an active learner profile target.");
+      if (fileInput.files.length === 0) return showToast("⚠️ Capture file evidence required.");
 
       const formData = new FormData();
-      formData.append('student_id', document.getElementById('evidence-student-id').value);
+      formData.append('student_id', studentId);
       formData.append('competency', document.getElementById('evidence-competency').value);
       formData.append('image', fileInput.files[0]);
       formData.append('notes', document.getElementById('evidence-notes').value);
@@ -360,7 +358,7 @@
       try {
         const res = await fetch(`${API_BASE}/cbc/upload-evidence/`, {
           method: 'POST',
-          headers: getHeaders(null), // Browser handles MultiPart boundary automatically
+          headers: getHeaders(null), // Browser handles boundary markers
           body: formData
         });
 
@@ -368,267 +366,235 @@
           showToast("✅ Evidence saved securely for assessment auditing!");
           document.getElementById('evidence-form').reset();
         } else {
-          showToast("❌ Upload validation error.");
+          showToast("❌ Upload validation schema reject.");
         }
       } catch (err) {
-        showToast("❌ Network issue: Saved local reference placeholder.");
+        showToast("❌ Network issue: Check connection bounds.");
       }
     }
 
     function logout() {
       localStorage.clear();
-      window.location.href = 'login.html';
+      window.location.href = 'index.html';
     }
 
-function openModal(id) {
-  const modal = document.getElementById(id);
-  if (modal) modal.style.display = 'flex';
-}
-
-function closeModal(id) {
-  const modal = document.getElementById(id);
-  if (modal) modal.style.display = 'none';
-}
-
-function downloadTemplate() {
-  const csv = `first_name,last_name,grade,stream,gender,admission_number
-Amina,Wanjiru,Grade 4,North,Female,ADM001
-Brian,Otieno,Grade 4,North,Male,ADM002
-Cynthia,Kamau,Grade 5,South,Female,ADM003`;
-  
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'akili_student_template.csv';
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function closeBulkModal() {
-  document.getElementById('bulk-import-modal').style.display = 'none';
-  document.getElementById('bulk-csv-file').value = '';
-  document.getElementById('import-progress').style.display = 'none';
-  document.getElementById('import-errors').style.display = 'none';
-  toggleBulkImportButton();
-}
-
-function toggleBulkImportButton() {
-  const input = document.getElementById('bulk-csv-file');
-  const button = document.getElementById('bulk-import-submit');
-  if (!button) return;
-  const enabled = input && input.files.length > 0;
-  button.disabled = !enabled;
-  button.style.opacity = enabled ? '1' : '0.5';
-  button.style.cursor = enabled ? 'pointer' : 'not-allowed';
-}
-
-async function submitBulkImport() {
-  const fileInput = document.getElementById('bulk-csv-file');
-  if (!fileInput.files.length) {
-    showToast("⚠️ Please select a CSV file.");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('file', fileInput.files[0]);
-
-  // Show progress
-  document.getElementById('import-progress').style.display = 'block';
-  document.getElementById('import-progress-bar').style.width = '40%';
-  document.getElementById('import-status').innerText = 'Uploading and processing...';
-
-  try {
-    const res = await fetch(`${API_BASE}/students/bulk-import/`, {
-      method: 'POST',
-      headers: getHeaders(null),
-      body: formData
-    });
-
-    document.getElementById('import-progress-bar').style.width = '100%';
-    const data = await res.json();
-
-    document.getElementById('import-status').innerText = data.message;
-
-    // Show any row-level errors
-    if (data.errors && data.errors.length > 0) {
-      const errBox = document.getElementById('import-errors');
-      errBox.style.display = 'block';
-      errBox.innerHTML = `
-        <p style="font-size:12px; color:#f59e0b; margin-bottom:8px;">
-          ⚠️ ${data.errors.length} row(s) had issues:
-        </p>
-        ${data.errors.map(e => `<p style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">• ${e}</p>`).join('')}
-      `;
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.style.display = 'flex';
     }
 
-    if (data.created > 0) {
-      showToast(`✅ ${data.created} students imported successfully!`);
-      loadStudents(); // refresh the roster
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.style.display = 'none';
     }
 
-  } catch (err) {
-    document.getElementById('import-status').innerText = 'Import failed.';
-    showToast("❌ Network error during import.");
-    console.error(err);
-  }
-}
-
-function closeStudentModal() {
-  document.getElementById('add-student-modal').style.display = 'none';
-  // Clear fields
-  ['s-firstname','s-lastname','s-email','s-stream'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-}
-
-async function submitNewStudent() {
-  const first_name = document.getElementById('s-firstname').value.trim();
-  const last_name = document.getElementById('s-lastname').value.trim();
-  const email = document.getElementById('s-email').value.trim();
-  const grade = document.getElementById('s-grade').value;
-  const stream = document.getElementById('s-stream').value.trim();
-  const gender = document.getElementById('s-gender').value;
-
-  if (!first_name || !last_name || !email) {
-    showToast("⚠️ First name, last name and email are required.");
-    return;
-  }
-
-  // Generate a default password — school can share it with the student
-  const tempPassword = `Akili@${Math.floor(1000 + Math.random() * 9000)}`;
-  // Username derived from email prefix
-  const username = email.split('@')[0];
-
-  showToast("⏳ Registering student...");
-
-  try {
-    // Step 1: create the user account
-    const userRes = await fetch(`${API_BASE}/create-user/`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({
-        email,
-        username,
-        password: tempPassword,
-        first_name,
-        last_name,
-        role: 'student'
-      })
-    });
-
-    if (!userRes.ok) {
-      const err = await userRes.json();
-      showToast(`❌ ${err.email?.[0] || err.detail || 'Failed to create student.'}`);
-      return;
+    function downloadTemplate() {
+      const csv = `first_name,last_name,grade,stream,gender,admission_number\nAmina,Wanjiru,Grade 4,North,Female,ADM001\nBrian,Otieno,Grade 4,North,Male,ADM002`;
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'akili_student_template.csv';
+      a.click();
+      URL.revokeObjectURL(url);
     }
 
-    // Step 2: find the new student profile and update grade/stream/gender
-    // Give the server a moment then reload — the profile is auto-created
-    await new Promise(r => setTimeout(r, 800));
-    const studentsRes = await fetch(`${API_BASE}/students/`, { headers: getHeaders() });
-    const data = await studentsRes.json();
-    const students = data.results || data;
-    const newStudent = students.find(s => s.email === email);
+    function closeBulkModal() {
+      document.getElementById('bulk-import-modal').style.display = 'none';
+      document.getElementById('bulk-csv-file').value = '';
+      document.getElementById('import-progress').style.display = 'none';
+      document.getElementById('import-errors').style.display = 'none';
+      toggleBulkImportButton();
+    }
 
-    if (newStudent) {
-      await fetch(`${API_BASE}/students/${newStudent.id}/`, {
-        method: 'PATCH',
-        headers: getHeaders(),
-        body: JSON.stringify({ grade, stream, gender })
+    function toggleBulkImportButton() {
+      const input = document.getElementById('bulk-csv-file');
+      const button = document.getElementById('bulk-import-submit');
+      if (!button) return;
+      const enabled = input && input.files.length > 0;
+      button.disabled = !enabled;
+      button.style.opacity = enabled ? '1' : '0.5';
+      button.style.cursor = enabled ? 'pointer' : 'not-allowed';
+    }
+
+    async function submitBulkImport() {
+      const fileInput = document.getElementById('bulk-csv-file');
+      if (!fileInput.files.length) return;
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      document.getElementById('import-progress').style.display = 'block';
+      document.getElementById('import-progress-bar').style.width = '40%';
+      document.getElementById('import-status').innerText = 'Uploading register map...';
+
+      try {
+        const res = await fetch(`${API_BASE}/students/bulk-import/`, {
+          method: 'POST',
+          headers: getHeaders(null),
+          body: formData
+        });
+
+        document.getElementById('import-progress-bar').style.width = '100%';
+        const data = await res.json();
+        document.getElementById('import-status').innerText = data.message || "Import completed.";
+
+        if (data.errors && data.errors.length > 0) {
+          const errBox = document.getElementById('import-errors');
+          errBox.style.display = 'block';
+          errBox.innerHTML = `<p style="font-size:12px; color:#f59e0b; margin-bottom:8px;">⚠️ Row flags:</p>` + 
+            data.errors.map(e => `<p style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">• ${e}</p>`).join('');
+        }
+
+        if (data.created > 0) {
+          showToast(`✅ ${data.created} learners parsed successfully!`);
+          loadStudents();
+        }
+      } catch (err) {
+        document.getElementById('import-status').innerText = 'Data drop fault.';
+        showToast("❌ Connection trace dropped during batch streaming.");
+      }
+    }
+
+    function closeStudentModal() {
+      document.getElementById('add-student-modal').style.display = 'none';
+      ['s-firstname','s-lastname','s-email','s-stream'].forEach(id => {
+        document.getElementById(id).value = '';
       });
     }
 
-    showToast(`✅ ${first_name} registered! Temp password: ${tempPassword}`);
-    closeStudentModal();
-    loadStudents(); // refresh the table
+    async function submitNewStudent() {
+      const first_name = document.getElementById('s-firstname').value.trim();
+      const last_name = document.getElementById('s-lastname').value.trim();
+      const email = document.getElementById('s-email').value.trim();
+      const grade = document.getElementById('s-grade').value;
+      const stream = document.getElementById('s-stream').value.trim();
+      const gender = document.getElementById('s-gender').value;
 
-  } catch (err) {
-    showToast("❌ Network error registering student.");
-    console.error(err);
-  }
-}
-
-function downloadReport(studentId) {
-  const term = document.getElementById(`term-${studentId}`).value;
-  const url = term
-    ? `${API_BASE}/students/${studentId}/report/pdf/?term=${encodeURIComponent(term)}`
-    : `${API_BASE}/students/${studentId}/report/pdf/`;
-
-  const token = localStorage.getItem('akili_token');
-
-  // Fetch with auth header then trigger download
-  fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
-    .then(res => {
-      if (!res.ok) {
-        showToast("❌ No results found for this student/term.");
+      if (!first_name || !last_name || !email) {
+        showToast("⚠️ Missing mandatory identity variables.");
         return;
       }
-      return res.blob();
-    })
-    .then(blob => {
-      if (!blob) return;
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `report_${studentId}.pdf`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      showToast("✅ Report card downloaded!");
-    })
-    .catch(() => showToast("❌ Failed to download report."));
-}
 
-async function loadStudents() {
-  try {
-    const res = await fetch(`${API_BASE}/students/`, { headers: getHeaders() });
-    if (!res.ok) {
-      showToast("❌ Failed to load student roster.");
-      return;
+      const tempPassword = `Akili@${Math.floor(1000 + Math.random() * 9000)}`;
+      const username = email.split('@')[0];
+
+      showToast("⏳ Registering identity matrices...");
+
+      try {
+        const userRes = await fetch(`${API_BASE}/create-user/`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ email, username, password: tempPassword, first_name, last_name, role: 'student' })
+        });
+
+        if (!userRes.ok) {
+          const err = await userRes.json();
+          showToast(`❌ ${err.email?.[0] || err.detail || 'Identity declaration rejected.'}`);
+          return;
+        }
+
+        await new Promise(r => setTimeout(r, 1000));
+        const studentsRes = await fetch(`${API_BASE}/students/`, { headers: getHeaders() });
+        const data = await studentsRes.json();
+        const students = data.results || data;
+        const newStudent = students.find(s => s.email === email);
+
+        if (newStudent) {
+          await fetch(`${API_BASE}/students/${newStudent.id}/`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify({ grade, stream, gender })
+          });
+        }
+
+        showToast(`✅ Registered! Password issued: ${tempPassword}`);
+        closeStudentModal();
+        loadStudents();
+      } catch (err) {
+        showToast("❌ Network core failure tracing ledger patch.");
+      }
     }
-    const data = await res.json();
-    const students = data.results || data;
 
-    const tbody = document.getElementById('student-table-body');
-    if (students.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" style="color:var(--text-muted); text-align:center;">No students registered yet.</td></tr>`;
-      return;
+    function downloadReport(studentId) {
+      const termEl = document.getElementById(`term-${studentId}`);
+      const term = termEl ? termEl.value : "";
+      const url = term 
+        ? `${API_BASE}/students/${studentId}/report/pdf/?term=${encodeURIComponent(term)}`
+        : `${API_BASE}/students/${studentId}/report/pdf/`;
+
+      showToast("📥 Streaming secure binary PDF from storage cluster...");
+
+      fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('akili_token')}` } })
+        .then(res => {
+          if (!res.ok) throw new Error();
+          return res.blob();
+        })
+        .then(blob => {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `Report_Card_${studentId}.pdf`;
+          a.click();
+          showToast("✅ Local compile execution completed.");
+        })
+        .catch(() => showToast("❌ Target execution lack analytical metrics or data points."));
     }
 
-    tbody.innerHTML = students.map(s => `
-      <tr>
-        <td>${s.first_name} ${s.last_name}</td>
-        <td>${s.admission_number}</td>
-        <td>${s.grade || '—'}</td>
-        <td>${s.stream || '—'}</td>
-        <td>${s.gender || '—'}</td>
-        <td><span style="color:var(--green); font-size:12px;">● Active</span></td>
-        <td>
-          <select id="term-${s.id}" style="padding:4px 8px; font-size:12px; margin-bottom:0; width:auto;">
-            <option value="">All Terms</option>
-            <option value="Term 1">Term 1</option>
-            <option value="Term 2">Term 2</option>
-            <option value="Term 3">Term 3</option>
-          </select>
-          <button onclick="downloadReport(${s.id})" 
-            style="padding:6px 12px; font-size:12px; margin-left:8px; background:#1a6b3c;">
-            📄 Report
-          </button>
-        </td>
-      </tr>
-    `).join('');
+    async function loadStudents() {
+      try {
+        const res = await fetch(`${API_BASE}/students/`, { headers: getHeaders() });
+        if (!res.ok) {
+          if (res.status === 401) logout();
+          return;
+        }
+        const data = await res.json();
+        const students = data.results || data;
+        const tbody = document.getElementById('student-table-body');
 
-    const select = document.getElementById('evidence-student-id');
-    select.innerHTML = students.map(s =>
-      `<option value="${s.id}">${s.first_name} ${s.last_name} (${s.admission_number})</option>`
-    ).join('');
+        if (students.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" style="color:var(--text-muted); text-align:center;">No students registered yet.</td></tr>`;
+          return;
+        }
 
-  } catch (err) {
-    showToast("❌ Network error loading students.");
-    console.error(err);
-  }
-}
-    // --- INITIAL DATA LOAD ---
-    loadStudents();    
+        // HEALED: Perfectly balanced 8-column schema array loop
+        tbody.innerHTML = students.map(s => `
+          <tr>
+            <td><strong>${s.first_name} ${s.last_name}</strong></td>
+            <td><code>${s.admission_number || 'PENDING'}</code></td>
+            <td>${s.grade || '—'}</td>
+            <td>${s.stream || '—'}</td>
+            <td>${s.gender || '—'}</td>
+            <td><span style="color:var(--green); font-size:12px;">● Active</span></td>
+            <td>
+              <select id="term-${s.id}" style="padding:4px 8px; font-size:12px; margin-bottom:0; width:auto;">
+                <option value="">All Terms Composite</option>
+                <option value="Term 1">Term 1</option>
+                <option value="Term 2">Term 2</option>
+                <option value="Term 3">Term 3</option>
+              </select>
+            </td>
+            <td>
+              <button onclick="downloadReport(${s.id})" style="padding:6px 12px; font-size:12px; background:#1a6b3c;">
+                📄 Compile PDF
+              </button>
+            </td>
+          </tr>
+        `).join('');
+
+        // HEALED: Synchronized dropdown dependency population
+        const select = document.getElementById('evidence-student-id');
+        if(select) {
+          select.innerHTML = students.map(s =>
+            `<option value="${s.id}">${s.first_name} ${s.last_name} (${s.admission_number || 'N/A'})</option>`
+          ).join('');
+        }
+
+      } catch (err) {
+        showToast("❌ Thread loop dropped parsing global student matrices.");
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadStudents);
   </script>
 </body>
 </html>
